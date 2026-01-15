@@ -1,0 +1,64 @@
+name: Create PR status
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  create-pr-status:
+    name: Create PR status
+    runs-on: ubuntu-latest
+
+    permissions:
+      statuses: write
+
+    steps:
+      - name: Create PR status
+        uses: actions/github-script@v8
+        env:
+          SHA: ${{ github.event.pull_request.head.sha }}
+        with:
+          script: |
+            // Determine if the HEAD of the default branch is deployed to
+            // production
+            const { data: repo } = await github.rest.repos.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+
+            const { data: branch } = await github.rest.repos.getBranch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              branch: repo.default_branch
+            });
+
+            const { data: deployments } = await github.rest.repos.listDeployments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: branch.commit.sha,
+              environment: "Production"
+            });
+
+            let isDeployed = false;
+            for (const deployment of deployments) {
+              const { data: statuses } = await github.rest.repos.listDeploymentStatuses({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                deployment_id: deployment.id
+              });
+
+              if (statuses.length > 0 && statuses[0].state === "success") {
+                isDeployed = true;
+                break;
+              }
+            }
+
+            // Create a commit status depending on the deployment status
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: process.env.SHA,
+              state: isDeployed ? "success" : "pending",
+              context: "traild/main-prod-parity",
+              description: "Default branch deployed to production"
+            });
