@@ -30,3 +30,47 @@ jobs:
           if [[ "${{ github.event.head_commit.message }}" != "succeed" ]]; then
             exit 1
           fi
+
+  unlock:
+    name: Update PR checks
+    runs-on: ubuntu-latest
+    needs: [prd]
+
+    steps:
+      - name: Update PR statuses
+        uses: actions/github-script@v8
+        with:
+          script: |
+            // Find all open PRs
+            const prPages = github.paginate.iterator(github.rest.pulls.list, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+            });
+            const prs = [];
+            for await (const { data: prPage } of prPages) prs.push(...prPage);
+
+            // Find our commit status with context "traild/main-prod-parity" for
+            // each PR and update it to "success"
+            for (const pr of prs) {
+              const statusPages = github.paginate.iterator(github.rest.repos.listCommitStatusesForRef, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: pr.head.sha,
+              });
+
+              for await (const { data: statusPage } of statusPages) {
+                for (const status of statusPage) {
+                  if (status.context === "traild/main-prod-parity") {
+                    await github.rest.repos.createCommitStatus({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      sha: pr.head.sha,
+                      state: "success",
+                      context: "traild/main-prod-parity",
+                      description: "Default branch deployed to production"
+                    });
+                  }
+                }
+              }
+            }
