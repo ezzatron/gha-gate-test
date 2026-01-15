@@ -16,6 +16,12 @@ jobs:
       - name: Sleep for 5 seconds
         run: sleep 5
 
+      - name: Debug
+        run: |
+          echo "Event name: ${{ github.event_name }}"
+          echo "Ref: ${{ github.ref }}"
+          echo "Base ref: ${{ github.base_ref }}"
+
   check-default-branch:
     name: Check default branch lock
     runs-on: ubuntu-latest
