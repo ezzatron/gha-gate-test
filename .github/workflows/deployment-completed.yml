@@ -1,0 +1,52 @@
+name: Deployment completed
+
+on:
+  deployment_status:
+    types: [success]
+
+jobs:
+  create-pr-status:
+    name: Deployment completed
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Update PR statuses
+        if: github.event.deployment_status.deployment.environment == 'Production'
+        uses: actions/github-script@v8
+        env:
+          SHA: ${{ github.event.deployment_status.deployment.sha }}
+        with:
+          script: |
+            // Find all open PRs
+            const prPages = github.paginate.iterator(github.pulls.list, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+            });
+            const prs = [];
+            for await (const { data: prPage } of prPages) prs.push(...prPage);
+
+            // Find our commit status with context "traild/main-prod-parity" for
+            // each PR and update it to "success"
+            for (const pr of prs) {
+              const statusPages = github.paginate.iterator(github.repos.listCommitStatusesForRef, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: pr.head.sha,
+              });
+
+              for await (const { data: statusPage } of statusPages) {
+                for (const status of statusPage) {
+                  if (status.context === "traild/main-prod-parity") {
+                    await github.repos.createCommitStatus({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      sha: pr.head.sha,
+                      state: "success",
+                      context: "traild/main-prod-parity",
+                      description: "Default branch deployed to production"
+                    });
+                  }
+                }
+              }
+            }

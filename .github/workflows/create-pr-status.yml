@@ -1,0 +1,26 @@
+name: Create PR status
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  create-pr-status:
+    name: Create PR status
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create PR status
+        uses: actions/github-script@v8
+        env:
+          SHA: ${{ github.event.pull_request.head.sha }}
+        with:
+          script: |
+            await github.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: process.env.SHA,
+              state: "pending",
+              context: "traild/main-prod-parity",
+              description: "Default branch deployed to production"
+            });
