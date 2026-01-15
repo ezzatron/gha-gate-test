@@ -45,7 +45,7 @@ jobs:
               branch: repo.default_branch
             });
 
-            const { data: deployments } = await github.rest.repos.listDeployments({
+            const deploymentPages = github.paginate.iterator(github.rest.repos.listDeployments, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               sha: branch.commit.sha,
@@ -53,16 +53,20 @@ jobs:
             });
 
             let isDeployed = false;
-            for (const deployment of deployments) {
-              const { data: statuses } = await github.rest.repos.listDeploymentStatuses({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                deployment_id: deployment.id
-              });
+            outer: for await (const { data: deploymentPage } of deploymentPages) {
+              for (const deployment of deploymentPage) {
+                const statusPages = github.paginate.iterator(github.rest.repos.listDeploymentStatuses, {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  deployment_id: deployment.id
+                });
 
-              if (statuses.length > 0 && statuses[0].state === "success") {
-                isDeployed = true;
-                break;
+                for await (const { data: statusPage } of statusPages) {
+                  if (statusPage.length > 0 && statusPage[0].state === "success") {
+                    isDeployed = true;
+                    break outer;
+                  }
+                }
               }
             }
 
@@ -96,29 +100,29 @@ jobs:
               state: 'open',
               base: 'main',
             });
-            const prs = [];
-            for await (const { data: prPage } of prPages) prs.push(...prPage);
 
             // Find our commit status with context "Default branch deployment" for
             // each PR and update it to "success"
-            for (const pr of prs) {
-              const statusPages = github.paginate.iterator(github.rest.repos.listCommitStatusesForRef, {
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                ref: pr.head.sha,
-              });
+            for await (const { data: prPage } of prPages) {
+              for (const pr of prPage) {
+                const statusPages = github.paginate.iterator(github.rest.repos.listCommitStatusesForRef, {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: pr.head.sha,
+                });
 
-              for await (const { data: statusPage } of statusPages) {
-                for (const status of statusPage) {
-                  if (status.context === "Default branch deployment") {
-                    await github.rest.repos.createCommitStatus({
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      sha: pr.head.sha,
-                      state: "pending",
-                      context: "Default branch deployment",
-                      description: "Un-deployed changes"
-                    });
+                for await (const { data: statusPage } of statusPages) {
+                  for (const status of statusPage) {
+                    if (status.context === "Default branch deployment") {
+                      await github.rest.repos.createCommitStatus({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        sha: pr.head.sha,
+                        state: "pending",
+                        context: "Default branch deployment",
+                        description: "Un-deployed changes"
+                      });
+                    }
                   }
                 }
               }
@@ -174,29 +178,29 @@ jobs:
               state: 'open',
               base: 'main',
             });
-            const prs = [];
-            for await (const { data: prPage } of prPages) prs.push(...prPage);
 
             // Find our commit status with context "Default branch deployment" for
             // each PR and update it to "success"
-            for (const pr of prs) {
-              const statusPages = github.paginate.iterator(github.rest.repos.listCommitStatusesForRef, {
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                ref: pr.head.sha,
-              });
+            for await (const { data: prPage } of prPages) {
+              for (const pr of prPage) {
+                const statusPages = github.paginate.iterator(github.rest.repos.listCommitStatusesForRef, {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: pr.head.sha,
+                });
 
-              for await (const { data: statusPage } of statusPages) {
-                for (const status of statusPage) {
-                  if (status.context === "Default branch deployment") {
-                    await github.rest.repos.createCommitStatus({
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      sha: pr.head.sha,
-                      state: "success",
-                      context: "Default branch deployment",
-                      description: "Ready for merge"
-                    });
+                for await (const { data: statusPage } of statusPages) {
+                  for (const status of statusPage) {
+                    if (status.context === "Default branch deployment") {
+                      await github.rest.repos.createCommitStatus({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        sha: pr.head.sha,
+                        state: "success",
+                        context: "Default branch deployment",
+                        description: "Ready for merge"
+                      });
+                    }
                   }
                 }
               }
