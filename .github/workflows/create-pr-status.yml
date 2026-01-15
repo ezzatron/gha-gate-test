@@ -19,11 +19,35 @@ jobs:
           SHA: ${{ github.event.pull_request.head.sha }}
         with:
           script: |
+            // Determine if the HEAD of the default branch is deployed to
+            // production
+            const { data: repo } = await github.rest.repos.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+
+            const { data: branch } = await github.rest.repos.getBranch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              branch: repo.default_branch
+            });
+
+            const { data: deployments } = await github.rest.repos.listDeployments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: branch.commit.sha,
+              environment: "Production"
+            });
+
+            const isDeployed = deployments.length > 0 &&
+              deployments.some(d => d.environment === "Production");
+
+            // Create a commit status depending on the deployment status
             await github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
               sha: process.env.SHA,
-              state: "pending",
+              state: isDeployed ? "success" : "pending",
               context: "traild/main-prod-parity",
               description: "Default branch deployed to production"
             });
