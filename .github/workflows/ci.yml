@@ -26,7 +26,8 @@ jobs:
     name: Check default branch lock
     runs-on: ubuntu-latest
     needs: [dev]
-    if: github.event_name == 'pull_request' && github.base_ref == 'refs/heads/main'
+    # Despite being called "base_ref", this is actually just a branch name
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
 
     permissions:
       statuses: write
