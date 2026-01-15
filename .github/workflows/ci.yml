@@ -6,8 +6,19 @@ on:
       - main
 
 jobs:
-  ci:
-    name: CI
+  stg:
+    name: Staging
+    runs-on: ubuntu-latest
+
+    environment:
+      name: Staging
+
+    steps:
+      - name: Always succeeds
+        run: echo "This step always succeeds"
+
+  prd:
+    name: Production
     runs-on: ubuntu-latest
 
     environment:
