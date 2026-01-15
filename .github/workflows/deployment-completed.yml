@@ -1,8 +1,6 @@
 name: Deployment completed
 
-on:
-  deployment_status:
-    types: [success]
+on: deployment_status
 
 jobs:
   create-pr-status:
@@ -14,7 +12,7 @@ jobs:
 
     steps:
       - name: Update PR statuses
-        if: github.event.deployment_status.deployment.environment == 'Production'
+        if: github.event.deployment_status.state == 'success' && github.event.deployment_status.deployment.environment == 'Production'
         uses: actions/github-script@v8
         env:
           SHA: ${{ github.event.deployment_status.deployment.sha }}
