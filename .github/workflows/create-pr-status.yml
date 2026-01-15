@@ -16,7 +16,7 @@ jobs:
           SHA: ${{ github.event.pull_request.head.sha }}
         with:
           script: |
-            await github.repos.createCommitStatus({
+            await github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
               sha: process.env.SHA,
