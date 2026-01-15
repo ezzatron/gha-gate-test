@@ -39,8 +39,19 @@ jobs:
               environment: "Production"
             });
 
-            const isDeployed = deployments.length > 0 &&
-              deployments.some(d => d.environment === "Production");
+            let isDeployed = false;
+            for (const deployment of deployments) {
+              const { data: statuses } = await github.rest.repos.listDeploymentStatuses({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                deployment_id: deployment.id
+              });
+
+              if (statuses.length > 0 && statuses[0].state === "success") {
+                isDeployed = true;
+                break;
+              }
+            }
 
             // Create a commit status depending on the deployment status
             await github.rest.repos.createCommitStatus({
