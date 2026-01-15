@@ -11,6 +11,9 @@ jobs:
       statuses: write
 
     steps:
+      - name: Debug payload
+        run: echo "${{ toJson(github.event) }}"
+
       - name: Update PR statuses
         if: github.event.deployment_status.state == 'success' && github.event.deployment_status.deployment.environment == 'Production'
         uses: actions/github-script@v8
