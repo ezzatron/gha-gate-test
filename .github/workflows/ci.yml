@@ -2,32 +2,104 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
+  pull_request:
 
 jobs:
-  lock:
-    name: Update PR checks
+  dev:
+    name: Development
     runs-on: ubuntu-latest
+
+    environment:
+      name: Development
+
+    steps:
+      - name: Sleep for 5 seconds
+        run: sleep 5
+
+  check-default-branch:
+    name: Check default branch lock
+    runs-on: ubuntu-latest
+    needs: [dev]
+    if: github.event_name == 'pull_request' && github.base_ref == 'refs/heads/main'
 
     permissions:
       statuses: write
 
     steps:
-      - name: Update PR statuses
+      - name: Create PR status
+        uses: actions/github-script@v8
+        env:
+          SHA: ${{ github.event.pull_request.head.sha }}
+        with:
+          script: |
+            // Determine if the HEAD of the default branch is deployed to
+            // production
+            const { data: repo } = await github.rest.repos.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+
+            const { data: branch } = await github.rest.repos.getBranch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              branch: repo.default_branch
+            });
+
+            const { data: deployments } = await github.rest.repos.listDeployments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: branch.commit.sha,
+              environment: "Production"
+            });
+
+            let isDeployed = false;
+            for (const deployment of deployments) {
+              const { data: statuses } = await github.rest.repos.listDeploymentStatuses({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                deployment_id: deployment.id
+              });
+
+              if (statuses.length > 0 && statuses[0].state === "success") {
+                isDeployed = true;
+                break;
+              }
+            }
+
+            // Create a commit status depending on the deployment status
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: process.env.SHA,
+              context: "Default branch deployment",
+              state: isDeployed ? "success" : "pending",
+              description: isDeployed ? "Ready for merge" : "Un-deployed changes"
+            });
+
+  lock-default-branch:
+    name: Lock default branch
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    permissions:
+      statuses: write
+
+    steps:
+      - name: Create PR statuses
         uses: actions/github-script@v8
         with:
           script: |
-            // Find all open PRs
+            // Find all open PRs targeting main
             const prPages = github.paginate.iterator(github.rest.pulls.list, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: 'open',
+              base: 'main',
             });
             const prs = [];
             for await (const { data: prPage } of prPages) prs.push(...prPage);
 
-            // Find our commit status with context "traild/main-prod-parity" for
+            // Find our commit status with context "Default branch deployment" for
             // each PR and update it to "success"
             for (const pr of prs) {
               const statusPages = github.paginate.iterator(github.rest.repos.listCommitStatusesForRef, {
@@ -38,14 +110,14 @@ jobs:
 
               for await (const { data: statusPage } of statusPages) {
                 for (const status of statusPage) {
-                  if (status.context === "traild/main-prod-parity") {
+                  if (status.context === "Default branch deployment") {
                     await github.rest.repos.createCommitStatus({
                       owner: context.repo.owner,
                       repo: context.repo.repo,
                       sha: pr.head.sha,
                       state: "pending",
-                      context: "traild/main-prod-parity",
-                      description: "Default branch deployed to production"
+                      context: "Default branch deployment",
+                      description: "Un-deployed changes"
                     });
                   }
                 }
@@ -55,14 +127,14 @@ jobs:
   stg:
     name: Staging
     runs-on: ubuntu-latest
-    needs: [lock]
+    needs: [lock-default-branch] # Since this needs lock, it will only run on pushes to default branch
 
     environment:
       name: Staging
 
     steps:
-      - name: Always succeeds
-        run: echo "This step always succeeds"
+      - name: Sleep for 5 seconds
+        run: sleep 5
 
   prd:
     name: Production
@@ -73,7 +145,7 @@ jobs:
       name: Production
 
     steps:
-      - name: Sleep for 30 seconds to simulate a long deployment
+      - name: Sleep for 30 seconds
         run: sleep 30
 
       - name: Fail or succeed based on commit message
@@ -82,8 +154,8 @@ jobs:
             exit 1
           fi
 
-  unlock:
-    name: Update PR checks
+  unlock-default-branch:
+    name: Unlock default branch
     runs-on: ubuntu-latest
     needs: [prd]
 
@@ -91,20 +163,21 @@ jobs:
       statuses: write
 
     steps:
-      - name: Update PR statuses
+      - name: Create PR statuses
         uses: actions/github-script@v8
         with:
           script: |
-            // Find all open PRs
+            // Find all open PRs targeting main
             const prPages = github.paginate.iterator(github.rest.pulls.list, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: 'open',
+              base: 'main',
             });
             const prs = [];
             for await (const { data: prPage } of prPages) prs.push(...prPage);
 
-            // Find our commit status with context "traild/main-prod-parity" for
+            // Find our commit status with context "Default branch deployment" for
             // each PR and update it to "success"
             for (const pr of prs) {
               const statusPages = github.paginate.iterator(github.rest.repos.listCommitStatusesForRef, {
@@ -115,14 +188,14 @@ jobs:
 
               for await (const { data: statusPage } of statusPages) {
                 for (const status of statusPage) {
-                  if (status.context === "traild/main-prod-parity") {
+                  if (status.context === "Default branch deployment") {
                     await github.rest.repos.createCommitStatus({
                       owner: context.repo.owner,
                       repo: context.repo.repo,
                       sha: pr.head.sha,
                       state: "success",
-                      context: "traild/main-prod-parity",
-                      description: "Default branch deployed to production"
+                      context: "Default branch deployment",
+                      description: "Ready for merge"
                     });
                   }
                 }
