@@ -127,7 +127,7 @@ jobs:
   stg:
     name: Staging
     runs-on: ubuntu-latest
-    needs: [lock-default-branch] # Since this needs lock, it will only run on pushes to default branch
+    needs: [dev, lock-default-branch] # Since this needs lock, it will only run on pushes to default branch
 
     environment:
       name: Staging
