@@ -64,6 +64,7 @@ jobs:
                 });
 
                 for await (const { data: statusPage } of statusPages) {
+                  console.log(`Checking ${statusPage.length} status(es) for deployment ${deployment.id}...`);
                   if (statusPage.length > 0 && statusPage[0].state === "success") {
                     console.log(`Found successful deployment: ${deployment.id}`);
                     isDeployed = true;
@@ -119,6 +120,7 @@ jobs:
                 });
 
                 for await (const { data: statusPage } of statusPages) {
+                  console.log(`Checking ${statusPage.length} status(es) for PR #${pr.number}...`);
                   for (const status of statusPage) {
                     if (status.context === "Default branch deployment") {
                       console.log(`Updating PR #${pr.number} status to pending`);
@@ -201,6 +203,7 @@ jobs:
                 });
 
                 for await (const { data: statusPage } of statusPages) {
+                  console.log(`Checking ${statusPage.length} status(es) for PR #${pr.number}...`);
                   for (const status of statusPage) {
                     if (status.context === "Default branch deployment") {
                       console.log(`Updating PR #${pr.number} status to success`);
