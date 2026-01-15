@@ -27,6 +27,6 @@ jobs:
     steps:
       - name: Fail or succeed based on commit message
         run: |
-          if [[ "${{ github.event.head_commit.message }}" != "success" ]]; then
+          if [[ "${{ github.event.head_commit.message }}" != "succeed" ]]; then
             exit 1
           fi
