@@ -36,6 +36,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [prd]
 
+    permissions:
+      statuses: write
+
     steps:
       - name: Update PR statuses
         uses: actions/github-script@v8
