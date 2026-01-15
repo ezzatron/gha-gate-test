@@ -32,17 +32,10 @@ jobs:
           SHA: ${{ github.event.pull_request.head.sha }}
         with:
           script: |
-            // Determine if the HEAD of the default branch is deployed to
-            // production
-            const { data: repo } = await github.rest.repos.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo
-            });
-
             const { data: branch } = await github.rest.repos.getBranch({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              branch: repo.default_branch
+              branch: "main"
             });
 
             const deploymentPages = github.paginate.iterator(github.rest.repos.listDeployments, {
