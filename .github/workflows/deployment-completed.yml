@@ -9,6 +9,9 @@ jobs:
     name: Deployment completed
     runs-on: ubuntu-latest
 
+    permissions:
+      statuses: write
+
     steps:
       - name: Update PR statuses
         if: github.event.deployment_status.deployment.environment == 'Production'

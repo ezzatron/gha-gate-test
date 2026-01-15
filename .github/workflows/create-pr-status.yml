@@ -9,6 +9,9 @@ jobs:
     name: Create PR status
     runs-on: ubuntu-latest
 
+    permissions:
+      statuses: write
+
     steps:
       - name: Create PR status
         uses: actions/github-script@v8
