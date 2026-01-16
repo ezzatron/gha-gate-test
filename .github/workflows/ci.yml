@@ -108,34 +108,19 @@ jobs:
               base: 'main',
             });
 
-            // Find our commit status with context "Default branch deployment" for
-            // each PR and update it to "success"
+            // Create a commit status for each PR
             for await (const { data: prPage } of prPages) {
               console.log(`Processing ${prPage.length} PR(s)...`);
               for (const pr of prPage) {
-                console.log(`Checking PR #${pr.number}...`);
-                const statusPages = github.paginate.iterator(github.rest.repos.listCommitStatusesForRef, {
+                console.log(`Updating PR #${pr.number} status to pending`);
+                await github.rest.repos.createCommitStatus({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
-                  ref: pr.head.sha,
+                  sha: pr.head.sha,
+                  state: "pending",
+                  context: "Default branch deployment",
+                  description: "Un-deployed changes"
                 });
-
-                for await (const { data: statusPage } of statusPages) {
-                  console.log(`Checking ${statusPage.length} status(es) for PR #${pr.number}...`);
-                  for (const status of statusPage) {
-                    if (status.context === "Default branch deployment") {
-                      console.log(`Updating PR #${pr.number} status to pending`);
-                      await github.rest.repos.createCommitStatus({
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        sha: pr.head.sha,
-                        state: "pending",
-                        context: "Default branch deployment",
-                        description: "Un-deployed changes"
-                      });
-                    }
-                  }
-                }
               }
             }
 
@@ -191,33 +176,18 @@ jobs:
               base: 'main',
             });
 
-            // Find our commit status with context "Default branch deployment" for
-            // each PR and update it to "success"
+            // Create a commit status for each PR
             for await (const { data: prPage } of prPages) {
               console.log(`Processing ${prPage.length} PR(s)...`);
               for (const pr of prPage) {
-                console.log(`Checking PR #${pr.number}...`);
-                const statusPages = github.paginate.iterator(github.rest.repos.listCommitStatusesForRef, {
+                console.log(`Updating PR #${pr.number} status to success`);
+                await github.rest.repos.createCommitStatus({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
-                  ref: pr.head.sha,
+                  sha: pr.head.sha,
+                  state: "success",
+                  context: "Default branch deployment",
+                  description: "Ready for merge"
                 });
-
-                for await (const { data: statusPage } of statusPages) {
-                  console.log(`Checking ${statusPage.length} status(es) for PR #${pr.number}...`);
-                  for (const status of statusPage) {
-                    if (status.context === "Default branch deployment") {
-                      console.log(`Updating PR #${pr.number} status to success`);
-                      await github.rest.repos.createCommitStatus({
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        sha: pr.head.sha,
-                        state: "success",
-                        context: "Default branch deployment",
-                        description: "Ready for merge"
-                      });
-                    }
-                  }
-                }
               }
             }
