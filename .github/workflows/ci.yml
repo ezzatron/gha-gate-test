@@ -40,53 +40,51 @@ jobs:
       - name: Create PR status
         uses: actions/github-script@v8
         env:
-          SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         with:
           script: |
-            console.log('Checking default branch deployment status...');
-            const { data: branch } = await github.rest.repos.getBranch({
+            // Look up the latest commit on main
+            const mainBranch = await github.rest.repos.getBranch({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              branch: "main"
+              branch: 'main',
             });
-            console.log(`Default branch commit SHA: ${branch.commit.sha}`);
+            const mainSha = mainBranch.data.commit.sha;
+            console.log(`Latest commit on main is ${mainSha}`);
 
-            const deploymentPages = github.paginate.iterator(github.rest.repos.listDeployments, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              sha: branch.commit.sha,
-              environment: "Production"
-            });
-
+            // Check if the latest commit on main has a successful deployment to
+            // Production. The easiest way to do this is to paginate through the
+            // check runs, as they also have deployment info when the check run
+            // is from a deployment.
             let isDeployed = false;
-            outer: for await (const { data: deploymentPage } of deploymentPages) {
-              console.log(`Checking ${deploymentPage.length} deployment(s)...`);
-              for (const deployment of deploymentPage) {
-                const statusPages = github.paginate.iterator(github.rest.repos.listDeploymentStatuses, {
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  deployment_id: deployment.id
-                });
-
-                for await (const { data: statusPage } of statusPages) {
-                  console.log(`Checking ${statusPage.length} status(es) for deployment ${deployment.id}...`);
-                  if (statusPage.length > 0 && statusPage[0].state === "success") {
-                    console.log(`Found successful deployment: ${deployment.id}`);
-                    isDeployed = true;
-                    break outer;
-                  }
+            const checkRunPages = github.paginate.iterator(github.rest.checks.listForRef, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: mainSha,
+            });
+            outer: for await (const { data: checkRunPage } of checkRunPages) {
+              console.log(`Processing ${checkRunPage.length} check runs...`);
+              for (const checkRun of checkRunPage) {
+                if (checkRun.conclusion === 'success' && checkRun.deployment?.environment === 'Production') {
+                  isDeployed = true;
+                  break outer;
                 }
               }
             }
 
-            // Create a commit status depending on the deployment status
-            console.log(`Creating commit status: ${isDeployed ? 'success' : 'pending'}`);
+            if (isDeployed) {
+              console.log(`Found successful Production deployment in check run ${checkRun.id}`);
+            } else {
+              console.log(`No successful Production deployment found in check run ${checkRun.id}`);
+            }
+
+            // Set the PR status accordingly
             await github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              sha: process.env.SHA,
-              context: "Default branch deployment",
+              sha: process.env.HEAD_SHA,
               state: isDeployed ? "success" : "pending",
+              context: "Default branch deployment",
               description: isDeployed ? "Ready for merge" : "Un-deployed changes"
             });
 
@@ -162,7 +160,6 @@ jobs:
     name: Unlock default branch
     runs-on: ubuntu-latest
     needs: [prd]
-    if: always()
 
     permissions:
       statuses: write
