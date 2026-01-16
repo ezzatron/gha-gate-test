@@ -4,6 +4,11 @@ on:
   push:
   pull_request:
 
+# Concurrency group to avoid overlapping runs on main branch
+concurrency:
+  group: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') && 'ci-main' || format('ci-{0}-{1}', github.event_name, github.run_id) }}
+  cancel-in-progress: false
+
 jobs:
   dev:
     name: Development
