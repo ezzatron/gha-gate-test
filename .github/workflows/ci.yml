@@ -73,9 +73,9 @@ jobs:
             }
 
             if (isDeployed) {
-              console.log(`Found successful Production deployment in check run ${checkRun.id}`);
+              console.log(`Found successful Production deployment`);
             } else {
-              console.log(`No successful Production deployment found in check run ${checkRun.id}`);
+              console.log(`No successful Production deployment found`);
             }
 
             // Set the PR status accordingly
