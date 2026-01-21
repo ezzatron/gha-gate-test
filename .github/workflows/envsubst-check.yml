@@ -17,3 +17,14 @@ jobs:
               echo "envsubst is available"
               which envsubst
           fi
+
+      - name: Check if sponge is available
+        run: |
+          if ! command -v sponge &> /dev/null
+          then
+              echo "sponge could not be found"
+              exit 1
+          else
+              echo "sponge is available"
+              which sponge
+          fi
