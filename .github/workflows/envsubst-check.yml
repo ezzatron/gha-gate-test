@@ -1,0 +1,18 @@
+on:
+  push:
+
+jobs:
+  envsubst-check:
+    name: envsubst check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check if envsubst is available
+        run: |
+          if ! command -v envsubst &> /dev/null
+          then
+              echo "envsubst could not be found"
+              exit 1
+          else
+              echo "envsubst is available"
+          fi
